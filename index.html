@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>萬財塾 記録システム</title>
+  <style>
+    :root {
+      --primary: #1a2744;
+      --accent: #2563eb;
+      --bg: #f0f4f8;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow-lg: 0 8px 24px rgba(0,0,0,0.14);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Hiragino Sans','Yu Gothic UI','Meiryo',sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    header { background: var(--primary); color: white; padding: 20px 36px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; }
+    .header-title { font-size: 24px; font-weight: 800; letter-spacing: .1em; display: flex; align-items: center; gap: 10px; }
+    .header-logo  { width: 36px; height: 36px; object-fit: contain; border-radius: 6px; }
+    .header-meta  { font-size: 12px; opacity: .65; margin-top: 4px; line-height: 1.6; }
+    .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .connected-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 20px; background: #d1fae5; color: #065f46; display: none; }
+
+    .btn { padding: 9px 18px; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all .18s; font-family: inherit; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-ai { background: #7c3aed; color: white; }
+    .btn-ai:hover { background: #6d28d9; }
+    .btn-ghost { background: rgba(255,255,255,.13); color: white; border: 1px solid rgba(255,255,255,.3); }
+    .btn-ghost:hover { background: rgba(255,255,255,.22); }
+    .btn-setting { background: rgba(255,255,255,.08); color: rgba(255,255,255,.8); border: 1px solid rgba(255,255,255,.2); font-size: 12px; padding: 7px 14px; }
+    .btn-setting:hover { background: rgba(255,255,255,.18); }
+    .btn-cancel { background: #f1f5f9; color: var(--text); }
+    .btn-cancel:hover { background: #e2e8f0; }
+    .btn-danger { background: #fee2e2; color: #b91c1c; }
+    .btn-sm { padding: 6px 14px; font-size: 12px; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    .stats-bar { background: white; border-bottom: 1px solid var(--border); padding: 14px 36px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+    .stat-item { text-align: center; white-space: nowrap; }
+    .stat-number { font-size: 24px; font-weight: 800; color: var(--accent); line-height: 1; }
+    .stat-label  { font-size: 10px; color: var(--muted); margin-top: 3px; }
+    .stat-div    { width: 1px; height: 32px; background: var(--border); flex-shrink: 0; }
+
+    .controls { padding: 16px 36px 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .search-wrap { position: relative; }
+    .search-wrap::before { content:'🔍'; position:absolute; left:11px; top:50%; transform:translateY(-50%); font-size:12px; pointer-events:none; }
+    .search-input { padding: 8px 12px 8px 34px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-family: inherit; width: 230px; background: white; }
+    .search-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+    .filters { display: flex; gap: 6px; flex-wrap: wrap; }
+    .filter-btn { padding: 6px 13px; border: 1px solid var(--border); border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; background: white; font-family: inherit; transition: all .18s; white-space: nowrap; }
+    .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .filter-btn.active { border-color: var(--accent); background: var(--accent); color: white; }
+    .result-count { padding: 0 36px 8px; font-size: 12px; color: var(--muted); }
+
+    .sessions-wrap { padding: 0 36px 48px; }
+    .sessions-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(280px,1fr)); gap: 15px; }
+
+    /* カード */
+    .session-card { background: white; border-radius: 12px; box-shadow: var(--shadow); border-left: 4px solid #94a3b8; transition: box-shadow .2s, transform .2s; overflow: hidden; }
+    .session-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+    .card-body { padding: 17px 19px 12px; cursor: pointer; user-select: none; }
+    .card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+    .week-badge { font-size: 11px; font-weight: 700; color: var(--muted); background: var(--bg); padding: 2px 10px; border-radius: 12px; }
+    .date-text  { font-size: 11px; color: #94a3b8; }
+    .theme-title { font-size: 15px; font-weight: 700; line-height: 1.45; margin-bottom: 10px; }
+    .card-foot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .cat-tag   { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+    .sp-tag    { font-size: 10px; background: #fee2e2; color: #b91c1c; padding: 2px 7px; border-radius: 10px; font-weight: 600; }
+    .memo-count-badge { margin-left: auto; font-size: 11px; color: var(--muted); background: var(--bg); padding: 2px 8px; border-radius: 10px; display: none; }
+    .memo-count-badge.visible { display: inline-block; }
+    /* メモボタン（カード下部） */
+    .card-memo-btn { width: 100%; padding: 9px 19px; background: #f8fafc; border: none; border-top: 1px solid var(--border); font-size: 13px; font-weight: 700; color: var(--accent); cursor: pointer; text-align: left; font-family: inherit; transition: background .18s; display: flex; align-items: center; gap: 6px; }
+    .card-memo-btn:hover { background: #eff6ff; }
+    .card-memo-btn .mc { margin-left: auto; font-size: 11px; font-weight: 400; color: var(--muted); }
+
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 16px; backdrop-filter: blur(2px); }
+    .overlay.hidden { display: none; }
+    .modal { background: white; border-radius: 16px; padding: 28px; width: 100%; max-width: 540px; max-height: 92vh; overflow-y: auto; box-shadow: 0 24px 60px rgba(0,0,0,.2); }
+    .modal-title   { font-size: 18px; font-weight: 800; margin-bottom: 20px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+    /* クイックメモモーダル */
+    .qm-modal { max-width: 420px; padding: 0; }
+    .qm-head { background: var(--primary); color: white; padding: 16px 20px; border-radius: 16px 16px 0 0; display: flex; justify-content: space-between; align-items: flex-start; }
+    .qm-week { font-size: 11px; opacity: .65; margin-bottom: 3px; }
+    .qm-theme { font-size: 16px; font-weight: 800; line-height: 1.3; }
+    .qm-close { background: rgba(255,255,255,.15); border: none; color: white; cursor: pointer; width: 28px; height: 28px; border-radius: 50%; font-size: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-left: 10px; margin-top: 2px; }
+    .qm-close:hover { background: rgba(255,255,255,.3); }
+    .qm-body { padding: 20px; }
+    .qm-memos { max-height: 160px; overflow-y: auto; margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px; }
+    .qm-name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .qm-name-label { font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+    .qm-name-input { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-family: inherit; }
+    .qm-name-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+    .qm-textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-family: inherit; resize: none; min-height: 90px; line-height: 1.6; }
+    .qm-textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+    .qm-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+    .qm-detail-link { font-size: 12px; color: var(--accent); background: none; border: none; cursor: pointer; font-family: inherit; font-weight: 600; padding: 0; }
+    .qm-detail-link:hover { text-decoration: underline; }
+    .qm-submit { padding: 10px 22px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .qm-submit:hover { background: #1d4ed8; }
+    .qm-submit:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* 詳細モーダル */
+    .detail-modal { max-width: 620px; padding: 0; display: flex; flex-direction: column; }
+    .detail-head  { background: var(--primary); color: white; padding: 22px 24px 18px; flex-shrink: 0; }
+    .detail-head-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+    .detail-week  { font-size: 12px; opacity: .7; margin-bottom: 6px; }
+    .detail-theme { font-size: 20px; font-weight: 800; line-height: 1.35; margin-bottom: 10px; }
+    .detail-head-btns { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+    .detail-close { background: rgba(255,255,255,.15); border: none; color: white; cursor: pointer; width: 30px; height: 30px; border-radius: 50%; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: background .2s; }
+    .detail-close:hover { background: rgba(255,255,255,.3); }
+    .detail-edit-btn { background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3); color: white; cursor: pointer; padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; font-family: inherit; transition: background .2s; }
+    .detail-edit-btn:hover { background: rgba(255,255,255,.28); }
+    .detail-body  { padding: 20px 24px; overflow-y: auto; flex: 1; }
+    .detail-points { background: var(--bg); border-radius: 10px; padding: 13px 15px; margin-bottom: 20px; font-size: 13px; color: var(--muted); line-height: 1.7; }
+    .detail-points strong { color: var(--text); font-size: 11px; display: block; margin-bottom: 5px; letter-spacing: .05em; }
+    .section-title { font-size: 13px; font-weight: 800; color: var(--text); margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
+    .detail-section { margin-bottom: 24px; }
+
+    /* 編集フォーム（管理者専用） */
+    .edit-section { background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 12px; padding: 18px; margin-bottom: 20px; }
+    .edit-section .section-title { color: #92400e; border-bottom-color: #fde68a; }
+
+    /* メモ */
+    .memos-list { margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .memo-card  { background: #f8fafc; border-radius: 10px; padding: 12px 14px; border-left: 3px solid var(--accent); }
+    .memo-meta  { font-size: 11px; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
+    .memo-text  { font-size: 13px; line-height: 1.65; white-space: pre-wrap; }
+    .no-memos   { font-size: 13px; color: #94a3b8; text-align: center; padding: 16px 0; }
+
+    /* 添付 */
+    .attach-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+    .attach-item { display: flex; align-items: center; gap: 10px; background: #f8fafc; border-radius: 8px; padding: 10px 12px; }
+    .attach-icon { font-size: 20px; flex-shrink: 0; }
+    .attach-name { font-size: 13px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .attach-dl   { font-size: 12px; color: var(--accent); text-decoration: none; font-weight: 700; white-space: nowrap; }
+    .attach-dl:hover { text-decoration: underline; }
+    .no-attach   { font-size: 13px; color: #94a3b8; text-align: center; padding: 10px 0; }
+    .upload-label { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; background: var(--bg); border: 1.5px dashed var(--border); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--muted); transition: all .18s; }
+    .upload-label:hover { border-color: var(--accent); color: var(--accent); background: #eff6ff; }
+    .upload-prog { font-size: 12px; color: var(--accent); margin-top: 6px; display: none; }
+
+    .form-row   { margin-bottom: 13px; }
+    .form-2col  { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 5px; }
+    .form-input, .form-textarea, .form-select { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-family: inherit; background: white; color: var(--text); transition: border-color .2s, box-shadow .2s; }
+    .form-textarea { resize: vertical; min-height: 70px; }
+    .form-input:focus, .form-textarea:focus, .form-select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+    .form-hint { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+    .form-hint a { color: var(--accent); }
+    .form-section-title { font-size: 13px; font-weight: 700; margin: 18px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+
+    .setup-step { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; background: #f8fafc; border-radius: 10px; margin-bottom: 10px; }
+    .step-num   { width: 26px; height: 26px; background: var(--accent); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; }
+    .step-body p   { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+    .step-body span { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+    .ai-note { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 11px 14px; font-size: 12px; color: #166534; line-height: 1.7; margin-bottom: 14px; }
+    .prompt-box { background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 13px 15px; font-size: 12px; line-height: 1.85; max-height: 360px; overflow-y: auto; white-space: pre-wrap; font-family: inherit; color: #334155; }
+
+    .loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 48px; color: var(--muted); font-size: 14px; }
+    .spin { width: 22px; height: 22px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty { grid-column: 1/-1; text-align: center; padding: 52px 20px; color: var(--muted); }
+    .empty-icon { font-size: 40px; margin-bottom: 12px; }
+
+    .toast { position: fixed; bottom: 26px; right: 26px; color: white; padding: 12px 20px; border-radius: 10px; font-size: 13px; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,.22); transition: opacity .3s, transform .3s; z-index: 300; background: #1e293b; }
+    .toast.ok  { background: #15803d; }
+    .toast.err { background: #b91c1c; }
+    .toast.hidden { opacity: 0; transform: translateY(10px); pointer-events: none; }
+
+    @media (max-width: 640px) {
+      header, .stats-bar, .controls, .sessions-wrap, .result-count { padding-left: 16px; padding-right: 16px; }
+      .sessions-grid { grid-template-columns: 1fr; }
+      .form-2col { grid-template-columns: 1fr; }
+      .search-input { width: 180px; }
+      .detail-theme { font-size: 17px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="header-title"><img src="icon.png" class="header-logo" alt="萬財塾">萬財塾</div>
+    <div class="header-meta">制作2部・営業 ｜ 隔週木曜 10:00〜10:30 ｜ 4階食堂<br>メンバー：竹野・大野・北角・中田・永田・地畠・山村</div>
+  </div>
+  <div class="header-right">
+    <span class="connected-badge" id="connectedBadge">● GitHub 接続中</span>
+    <button class="btn btn-ai"      onclick="openAI()">🤖 次回テーマをAIに提案</button>
+    <button class="btn btn-ghost"   onclick="openAdd()">＋ 新規追加</button>
+    <button class="btn btn-setting" onclick="openSetup()">⚙ 設定</button>
+  </div>
+</header>
+
+<div class="stats-bar" id="statsBar"></div>
+
+<div class="controls">
+  <div class="search-wrap">
+    <input type="text" class="search-input" id="searchInput" placeholder="テーマ・内容を検索..." oninput="render()">
+  </div>
+  <div class="filters">
+    <button class="filter-btn active" onclick="setFilter('all',this)">すべて</button>
+    <button class="filter-btn" onclick="setFilter('AI・デジタル',this)">AI・デジタル</button>
+    <button class="filter-btn" onclick="setFilter('リーダーシップ・組織',this)">リーダーシップ・組織</button>
+    <button class="filter-btn" onclick="setFilter('マーケティング・消費',this)">マーケティング・消費</button>
+    <button class="filter-btn" onclick="setFilter('スピーチ・表現',this)">スピーチ・表現</button>
+    <button class="filter-btn" onclick="setFilter('社会・思想',this)">社会・思想</button>
+    <button class="filter-btn" onclick="setFilter('読書・クリエイティブ',this)">読書・クリエイティブ</button>
+    <button class="filter-btn" onclick="setFilter('思考・フレームワーク',this)">思考・フレームワーク</button>
+  </div>
+</div>
+<div class="result-count" id="resultCount"></div>
+
+<div class="sessions-wrap">
+  <div class="sessions-grid" id="sessionsGrid">
+    <div class="loading" style="grid-column:1/-1"><div class="spin"></div>読み込み中...</div>
+  </div>
+</div>
+
+<!-- ★ クイックメモモーダル（シンプル版） -->
+<div class="overlay hidden" id="quickMemoModal">
+  <div class="modal qm-modal">
+    <div class="qm-head">
+      <div style="flex:1;min-width:0">
+        <div class="qm-week" id="qmWeek"></div>
+        <div class="qm-theme" id="qmTheme"></div>
+      </div>
+      <button class="qm-close" onclick="closeModal('quickMemoModal')">✕</button>
+    </div>
+    <div class="qm-body">
+      <!-- 既存メモ一覧（コンパクト） -->
+      <div class="qm-memos" id="qmMemosList"></div>
+      <!-- 名前 -->
+      <div class="qm-name-row">
+        <span class="qm-name-label">お名前</span>
+        <input type="text" class="qm-name-input" id="qmAuthor" placeholder="例：山村">
+      </div>
+      <!-- メモ入力 -->
+      <textarea class="qm-textarea" id="qmText" placeholder="感想・気づきを自由に書いてください..."></textarea>
+      <!-- ボタン -->
+      <div class="qm-actions">
+        <button class="qm-detail-link" onclick="openDetailFromQM()">📎 添付・詳細を見る →</button>
+        <button class="qm-submit" id="qmPostBtn" onclick="submitQuickMemo()">💬 投稿する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 詳細モーダル（管理者・添付ファイル用） -->
+<div class="overlay hidden" id="detailModal">
+  <div class="modal detail-modal">
+    <div class="detail-head">
+      <div class="detail-head-top">
+        <div style="flex:1;min-width:0">
+          <div class="detail-week"  id="dWeek"></div>
+          <div class="detail-theme" id="dTheme"></div>
+          <span id="dCatTag" class="cat-tag"></span>
+        </div>
+        <div class="detail-head-btns">
+          <button class="detail-edit-btn" id="editToggleBtn" onclick="toggleEdit()" style="display:none">✏ 編集</button>
+          <button class="detail-close" onclick="closeModal('detailModal')">✕</button>
+        </div>
+      </div>
+    </div>
+    <div class="detail-body">
+      <div class="detail-points" id="dPoints"></div>
+
+      <!-- 編集フォーム（管理者のみ） -->
+      <div class="edit-section" id="editForm" style="display:none">
+        <div class="section-title">✏ セッションを編集（管理者）</div>
+        <div class="form-2col">
+          <div class="form-row">
+            <label class="form-label">開催日</label>
+            <input type="date" class="form-input" id="editDate">
+          </div>
+          <div class="form-row">
+            <label class="form-label">カテゴリ</label>
+            <select class="form-select" id="editCat">
+              <option value="AI・デジタル">AI・デジタル</option>
+              <option value="リーダーシップ・組織">リーダーシップ・組織</option>
+              <option value="マーケティング・消費">マーケティング・消費</option>
+              <option value="スピーチ・表現">スピーチ・表現</option>
+              <option value="社会・思想">社会・思想</option>
+              <option value="読書・クリエイティブ">読書・クリエイティブ</option>
+              <option value="思考・フレームワーク">思考・フレームワーク</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">テーマ</label>
+          <input type="text" class="form-input" id="editTheme">
+        </div>
+        <div class="form-row">
+          <label class="form-label">話し合うポイント</label>
+          <textarea class="form-textarea" id="editPoints"></textarea>
+        </div>
+        <div class="form-row">
+          <label class="form-label">備考</label>
+          <input type="text" class="form-input" id="editNote" placeholder="例：次世代リーダーMTG">
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn btn-cancel btn-sm" onclick="cancelEdit()">キャンセル</button>
+          <button class="btn btn-primary btn-sm" id="editSaveBtn" onclick="saveEdit()">保存する</button>
+        </div>
+      </div>
+
+      <!-- メモ一覧 -->
+      <div class="detail-section">
+        <div class="section-title">💬 メモ・感想</div>
+        <div class="memos-list" id="memosList"></div>
+      </div>
+
+      <!-- 添付 -->
+      <div class="detail-section">
+        <div class="section-title">📎 資料・添付ファイル</div>
+        <div class="attach-list" id="attachList"></div>
+        <label class="upload-label">
+          <input type="file" id="fileInput" style="display:none" onchange="handleUpload(event)">
+          📎 資料を添付する
+        </label>
+        <div class="upload-prog" id="uploadProg"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 設定モーダル -->
+<div class="overlay hidden" id="setupModal">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-title">⚙ GitHub 接続設定</div>
+    <div class="setup-step">
+      <div class="step-num">1</div>
+      <div class="step-body"><p>GitHubでリポジトリを作成（初回のみ）</p><span><a href="https://github.com/new" target="_blank">github.com/new</a> → 名前: <strong>manzai-juku</strong> → <strong>Public</strong>で作成</span></div>
+    </div>
+    <div class="setup-step">
+      <div class="step-num">2</div>
+      <div class="step-body"><p>Personal Access Token を発行</p><span><a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a><br>Token name: 萬財塾 ／ Expiration: 1 year ／ スコープ: <strong>public_repo</strong> → Generate token</span></div>
+    </div>
+    <div class="setup-step">
+      <div class="step-num">3</div>
+      <div class="step-body"><p>メンバーへの共有</p><span>ユーザー名・リポジトリ名・トークンの3点をメンバーに共有。各自で設定するとメモ・添付が使えます。</span></div>
+    </div>
+    <div class="form-section-title">接続情報</div>
+    <div class="form-2col">
+      <div class="form-row">
+        <label class="form-label">GitHubユーザー名 *</label>
+        <input type="text" class="form-input" id="cfgOwner" placeholder="例: tokokanri10502">
+      </div>
+      <div class="form-row">
+        <label class="form-label">リポジトリ名 *</label>
+        <input type="text" class="form-input" id="cfgRepo" placeholder="例: manzai-juku">
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Personal Access Token *</label>
+      <input type="password" class="form-input" id="cfgToken" placeholder="ghp_xxxxxxxxxxxx">
+      <div class="form-hint">トークンはこのブラウザのみに保存。GitHub APIとの通信にのみ使用されます。</div>
+    </div>
+    <div class="form-section-title">管理者設定（セッション編集機能）</div>
+    <div class="form-row">
+      <label class="form-label">管理者パスワード</label>
+      <div style="display:flex;gap:8px">
+        <input type="password" class="form-input" id="adminPwdInput" placeholder="4文字以上で設定">
+        <button class="btn btn-primary btn-sm" onclick="setAdminPwd()" style="white-space:nowrap">設定</button>
+      </div>
+      <div class="form-hint" id="adminPwdStatus"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeModal('setupModal')">キャンセル</button>
+      <button class="btn btn-danger" onclick="clearConfig()" style="margin-right:auto">設定を削除</button>
+      <button class="btn btn-primary" id="setupSaveBtn" onclick="saveSetup()">接続して保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新規追加モーダル -->
+<div class="overlay hidden" id="addModal">
+  <div class="modal">
+    <div class="modal-title">📝 新しいセッションを追加</div>
+    <div class="form-2col">
+      <div class="form-row"><label class="form-label">回数 *</label><input type="number" class="form-input" id="newWeek" min="1"></div>
+      <div class="form-row"><label class="form-label">開催日 *</label><input type="date" class="form-input" id="newDate"></div>
+    </div>
+    <div class="form-row"><label class="form-label">テーマ *</label><input type="text" class="form-input" id="newTheme"></div>
+    <div class="form-row"><label class="form-label">話し合うポイント</label><textarea class="form-textarea" id="newPoints"></textarea></div>
+    <div class="form-row">
+      <label class="form-label">カテゴリ *</label>
+      <select class="form-select" id="newCat">
+        <option value="AI・デジタル">AI・デジタル</option>
+        <option value="リーダーシップ・組織">リーダーシップ・組織</option>
+        <option value="マーケティング・消費">マーケティング・消費</option>
+        <option value="スピーチ・表現">スピーチ・表現</option>
+        <option value="社会・思想">社会・思想</option>
+        <option value="読書・クリエイティブ">読書・クリエイティブ</option>
+        <option value="思考・フレームワーク">思考・フレームワーク</option>
+      </select>
+    </div>
+    <div class="form-row"><label class="form-label">備考（任意）</label><textarea class="form-textarea" id="newNote" style="min-height:50px"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeModal('addModal')">キャンセル</button>
+      <button class="btn btn-primary" id="addBtn" onclick="addSession()">追加する</button>
+    </div>
+  </div>
+</div>
+
+<!-- AIモーダル -->
+<div class="overlay hidden" id="aiModal">
+  <div class="modal">
+    <div class="modal-title">🤖 AIへのプロンプトを生成しました</div>
+    <div class="ai-note">✅ 「📋 コピー」を押して <strong>Claude のチャット画面に貼り付ける</strong>だけで次回テーマの提案が届きます。</div>
+    <div class="prompt-box" id="aiPromptBox"></div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeModal('aiModal')">閉じる</button>
+      <button class="btn btn-ai"     onclick="copyPrompt()">📋 クリップボードにコピー</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+
+<script>
+const BASE = [
+  { week:  1, date:"2024/5/9",   theme:"クリエイティブディレクター",          points:"参加者の意識度の確認",                                                                             cat:"読書・クリエイティブ", note:"", sp:false },
+  { week:  2, date:"2024/5/23",  theme:"マウンティング",                       points:"思い当たることはある？",                                                                           cat:"社会・思想",           note:"", sp:false },
+  { week:  3, date:"2024/6/6",   theme:"石丸市長のスピーチ",                   points:"石丸市長に投票する？緊張をほぐす方法は？",                                                         cat:"スピーチ・表現",       note:"", sp:false },
+  { week:  4, date:"2024/6/20",  theme:"マーケター初級質問",                   points:"それぞれの問いに対する答えを意識していますか？",                                                   cat:"マーケティング・消費", note:"", sp:false },
+  { week:  5, date:"2024/7/4",   theme:"５つのグレートリセット",               points:"どの順番でリセットされる？自分がすることは？",                                                     cat:"社会・思想",           note:"", sp:false },
+  { week:  6, date:"2024/7/18",  theme:"生きて",                               points:"全体の感想と好きな章（なぜ）",                                                                    cat:"読書・クリエイティブ", note:"", sp:false },
+  { week:  7, date:"2024/8/8",   theme:"超渋沢論",                             points:"今、渋沢栄一が改めて注目を浴びている理由とは？利他的思考でしか生き残れない、柳井さんの真意とは？", cat:"リーダーシップ・組織", note:"", sp:false },
+  { week:  8, date:"2024/8/22",  theme:"長い夏の消費異変",                     points:"子供の頃の夏と今の夏の違いを3つ（行動・消費）。我々のビジネスで何ができますか？",               cat:"マーケティング・消費", note:"", sp:false },
+  { week:  9, date:"2024/9/5",   theme:"SNSの中毒性",                          points:"読んだ感想とSNSとの付き合い方はどうあるべきか",                                                  cat:"社会・思想",           note:"", sp:false },
+  { week: 10, date:"2024/9/26",  theme:"生成AIの可能性",                       points:"AIでデザインを一つ作る。AIの活用法は？",                                                          cat:"AI・デジタル",         note:"", sp:false },
+  { week: 11, date:"2024/10/3",  theme:"デジタルスキル",                       points:"クリスマスのタイトルロゴとイラストをAIで。「デジタルスキル」はなぜ必要だと言われているの？",     cat:"AI・デジタル",         note:"", sp:false },
+  { week: 12, date:"2025/1/16",  theme:"本のプレゼン",                         points:"好きなビジネス書を読んで3枚にまとめる",                                                          cat:"読書・クリエイティブ", note:"", sp:false },
+  { week: 13, date:"2025/2/6",   theme:"クリエイターに求められることとは",     points:"一番近い考え方を選択し、まとめて発表する",                                                        cat:"読書・クリエイティブ", note:"", sp:false },
+  { week: 14, date:"2025/2/20",  theme:"スピーチ",                             points:"所見発表演説をして",                                                                              cat:"スピーチ・表現",       note:"", sp:false },
+  { week: 15, date:"2025/3/6",   theme:"スピーチ２",                           points:"再度整理して、所信表明演説をしよう",                                                              cat:"スピーチ・表現",       note:"", sp:false },
+  { week: 16, date:"2025/3/27",  theme:"石岡瑛子と佐藤可士和",                 points:"どちらかを調べて、彼らがクリエイティブに対してどのような思いでいるかをまとめてください",          cat:"読書・クリエイティブ", note:"", sp:false },
+  { week: 17, date:"2025/4/10",  theme:"言論の自由の有無",                     points:"2対2に分かれ言論の自由は必要か制限を掛けるべきかを討論する。①主張 ②質問2問ずつ",              cat:"社会・思想",           note:"", sp:false },
+  { week: 18, date:"2025/4/24",  theme:"島田紳助のセンス",                     points:"感想。センス。それぞれの戦略とは",                                                                cat:"読書・クリエイティブ", note:"", sp:false },
+  { week: 19, date:"2025/5/22",  theme:"EQ",                                   points:"EQとは自分の言葉で。測定して自己分析をしてください",                                              cat:"リーダーシップ・組織", note:"", sp:false },
+  { week: 20, date:"2025/6/5",   theme:"ナッジ理論",                           points:"ナッジ理論に乗せられた経験を教えて。どんなことに使える？問題点も教えて",                         cat:"思考・フレームワーク", note:"", sp:false },
+  { week: 21, date:"2025/6/19",  theme:"AIの裏技",                             points:"AIの裏技を3つ持ってきてください",                                                                 cat:"AI・デジタル",         note:"", sp:false },
+  { week: 22, date:"2025/7/3",   theme:"朝礼での称賛方法",                     points:"朝礼で目覚ましい業績を上げた社員の称賛の最適な方法とは",                                         cat:"リーダーシップ・組織", note:"", sp:false },
+  { week: 23, date:"2025/7/17",  theme:"Netflixの休暇規程撤廃の是非",          points:"私たちの組織でも導入できるか？",                                                                  cat:"リーダーシップ・組織", note:"", sp:false },
+  { week: 24, date:"2025/7/31",  theme:"どう見られたいか",                     points:"キャッチフレーズを作って。浸透させるために何する？",                                              cat:"マーケティング・消費", note:"", sp:false },
+  { week: 25, date:"2025/8/21",  theme:"NFCタグの活用",                        points:"活用方法とその最適なデザインを考えて",                                                            cat:"AI・デジタル",         note:"", sp:false },
+  { week: 26, date:"2025/9/11",  theme:"ダイアグラム思考",                     points:"思考の整理と可視化",                                                                              cat:"思考・フレームワーク", note:"次世代リーダーMTG", sp:true },
+  { week: 27, date:"2025/9/25",  theme:"良循環の具体例と欠陥の指摘",           points:"良循環の仕組みとその落とし穴",                                                                    cat:"思考・フレームワーク", note:"", sp:false },
+  { week: 28, date:"2025/10/9",  theme:"第2回ビブリオバトル",                  points:"本の紹介と議論",                                                                                  cat:"読書・クリエイティブ", note:"次世代リーダーMTG", sp:true },
+  { week: 29, date:"2025/10/16", theme:"ビブリオバトルを振り返る",             points:"発表者の良かった点を具体的に。人の深掘り",                                                        cat:"読書・クリエイティブ", note:"", sp:false },
+  { week: 30, date:"2026/1/15",  theme:"NotebookLM使い方講座",                 points:"NotebookLMの基本的な使い方を学ぶ",                                                               cat:"AI・デジタル",         note:"", sp:false },
+  { week: 31, date:"2026/1/29",  theme:"NotebookLM発表会",                     points:"3分間発表",                                                                                       cat:"AI・デジタル",         note:"", sp:false },
+  { week: 32, date:"2026/2/12",  theme:"本谷課長による女性活躍推進について",   points:"女性活躍推進の現状と課題",                                                                        cat:"リーダーシップ・組織", note:"次世代リーダーMTG", sp:true },
+  { week: 33, date:"2026/2/26",  theme:"女性活躍推進についての意見交換",       points:"本谷課長の発表を受けての意見交換",                                                                cat:"リーダーシップ・組織", note:"", sp:false },
+  { week: 34, date:"2026/3/12",  theme:"日経新聞から必要な情報をピックアップ", points:"情報の選び方と自分ごと化",                                                                        cat:"マーケティング・消費", note:"次世代リーダーMTG", sp:true },
+  { week: 35, date:"2026/3/26",  theme:"Claude Codeでできることを共有",        points:"それぞれが試したことの発表と活用アイデアの共有",                                                  cat:"AI・デジタル",         note:"", sp:false },
+];
+
+const CAT = {
+  "AI・デジタル":         { bg:"#dbeafe", color:"#1d4ed8", border:"#3b82f6" },
+  "リーダーシップ・組織": { bg:"#d1fae5", color:"#065f46", border:"#10b981" },
+  "マーケティング・消費": { bg:"#ffedd5", color:"#92400e", border:"#f97316" },
+  "スピーチ・表現":       { bg:"#ede9fe", color:"#5b21b6", border:"#8b5cf6" },
+  "社会・思想":           { bg:"#fce7f3", color:"#9d174d", border:"#ec4899" },
+  "読書・クリエイティブ": { bg:"#cffafe", color:"#155e75", border:"#06b6d4" },
+  "思考・フレームワーク": { bg:"#fef9c3", color:"#713f12", border:"#eab308" },
+};
+
+const GH = 'https://api.github.com';
+const CFG_KEY = 'mzjuku_cfg';
+function getCfg(){ try{ return JSON.parse(localStorage.getItem(CFG_KEY)||'{}'); }catch(e){ return {}; } }
+function setCfg(c){ localStorage.setItem(CFG_KEY, JSON.stringify(c)); }
+function ghH(t){ return { Authorization:`token ${t}`, Accept:'application/vnd.github.v3+json', 'Content-Type':'application/json' }; }
+
+async function ghGet(owner, repo, path, token){
+  const r = await fetch(`${GH}/repos/${owner}/${repo}/contents/${path}`, { headers: ghH(token) });
+  if(r.status===404) return null;
+  if(!r.ok) throw new Error(`GitHub APIエラー: ${r.status}`);
+  return r.json();
+}
+async function ghPut(owner, repo, path, content, sha, message, token, isRaw){
+  const encoded = isRaw ? content : btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2))));
+  const body = { message, content: encoded };
+  if(sha) body.sha = sha;
+  const r = await fetch(`${GH}/repos/${owner}/${repo}/contents/${path}`, { method:'PUT', headers:ghH(token), body:JSON.stringify(body) });
+  if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.message||`書き込みエラー: ${r.status}`); }
+  return r.json();
+}
+function b64json(s){ return JSON.parse(decodeURIComponent(escape(atob(s.replace(/\n/g,''))))); }
+
+let extra=[], sessionData={}, ALL=[...BASE], currentFilter='all', currentWeek=null;
+
+function isAdmin(){ return !!localStorage.getItem('mzjuku_admin'); }
+
+async function loadAll(){
+  const cfg=getCfg();
+  if(!cfg.owner||!cfg.repo||!cfg.token) return;
+  const [sf,df]=await Promise.all([
+    ghGet(cfg.owner,cfg.repo,'sessions.json',cfg.token).catch(()=>null),
+    ghGet(cfg.owner,cfg.repo,'session_data.json',cfg.token).catch(()=>null),
+  ]);
+  if(sf){ try{ extra=b64json(sf.content); }catch(e){} }
+  if(df){ try{ sessionData=b64json(df.content); }catch(e){} }
+  const ov=sessionData.overrides||{};
+  ALL=[...BASE.map(s=>{ const o=ov[`week_${s.week}`]; return o?{...s,...o}:s; }), ...extra];
+}
+async function saveSessionData(){
+  const cfg=getCfg();
+  if(!cfg.owner||!cfg.repo||!cfg.token) throw new Error('GitHub未設定です。⚙ 設定から接続してください');
+  const f=await ghGet(cfg.owner,cfg.repo,'session_data.json',cfg.token);
+  await ghPut(cfg.owner,cfg.repo,'session_data.json',sessionData,f?f.sha:null,'萬財塾 メモ更新',cfg.token);
+}
+async function saveSessions(){
+  const cfg=getCfg();
+  if(!cfg.owner||!cfg.repo||!cfg.token) throw new Error('GitHub未設定');
+  const f=await ghGet(cfg.owner,cfg.repo,'sessions.json',cfg.token);
+  await ghPut(cfg.owner,cfg.repo,'sessions.json',extra,f?f.sha:null,'萬財塾 セッション更新',cfg.token);
+}
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function memoCount(w){ const d=sessionData[`week_${w}`]; return d?(d.memos||[]).length:0; }
+
+function renderStats(){
+  const cc={};
+  Object.keys(CAT).forEach(c=>cc[c]=0);
+  ALL.forEach(s=>{ if(cc[s.cat]!==undefined) cc[s.cat]++; });
+  let h=`<div class="stat-item"><div class="stat-number">${ALL.length}</div><div class="stat-label">総セッション数</div></div><div class="stat-div"></div>`;
+  Object.entries(cc).forEach(([cat,n])=>{
+    if(!n) return;
+    h+=`<div class="stat-item"><div class="stat-number" style="font-size:18px;color:${CAT[cat].color}">${n}</div><div class="stat-label">${cat}</div></div>`;
+  });
+  document.getElementById('statsBar').innerHTML=h;
+}
+
+function render(){
+  const q=document.getElementById('searchInput').value.toLowerCase();
+  const list=ALL.filter(s=>{
+    const mc=currentFilter==='all'||s.cat===currentFilter;
+    const mq=!q||s.theme.toLowerCase().includes(q)||s.points.toLowerCase().includes(q);
+    return mc&&mq;
+  }).sort((a,b)=>b.week-a.week);
+  document.getElementById('resultCount').textContent=`${list.length} 件を表示中`;
+  const g=document.getElementById('sessionsGrid');
+  if(!list.length){ g.innerHTML=`<div class="empty"><div class="empty-icon">🔍</div>該当するセッションが見つかりませんでした</div>`; return; }
+  g.innerHTML=list.map(s=>{
+    const st=CAT[s.cat]||{bg:'#f1f5f9',color:'#475569',border:'#94a3b8'};
+    const mc=memoCount(s.week);
+    return `<div class="session-card" style="border-left-color:${st.border}">
+  <div class="card-body" onclick="openDetail(${s.week})">
+    <div class="card-top"><span class="week-badge">第 ${s.week} 回</span><span class="date-text">${esc(s.date)}</span></div>
+    <div class="theme-title">${esc(s.theme)}</div>
+    <div class="card-foot">
+      <span class="cat-tag" style="background:${st.bg};color:${st.color}">${esc(s.cat)}</span>
+      ${s.sp?'<span class="sp-tag">🔹 次世代リーダーMTG</span>':''}
+    </div>
+  </div>
+  <button class="card-memo-btn" onclick="openQuickMemo(${s.week})">
+    💬 メモを書く
+    <span class="mc">${mc?mc+' 件のメモあり':''}</span>
+  </button>
+</div>`;
+  }).join('');
+}
+
+function setFilter(cat,btn){
+  currentFilter=cat;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); render();
+}
+
+function closeModal(id){ document.getElementById(id).classList.add('hidden'); }
+function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+['setupModal','addModal','aiModal','detailModal','quickMemoModal'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',function(e){ if(e.target===this) closeModal(id); });
+});
+
+/* ====== クイックメモ（シンプル版） ====== */
+function openQuickMemo(week){
+  currentWeek=week;
+  const s=ALL.find(x=>x.week===week); if(!s) return;
+  document.getElementById('qmWeek').textContent=`第 ${s.week} 回　${s.date}`;
+  document.getElementById('qmTheme').textContent=s.theme;
+  // 名前を前回から引き継ぎ
+  document.getElementById('qmAuthor').value=localStorage.getItem('mzjuku_name')||'';
+  document.getElementById('qmText').value='';
+  // 既存メモ表示（コンパクト）
+  renderQuickMemos(week);
+  openModal('quickMemoModal');
+  // テキストエリアにフォーカス
+  setTimeout(()=>{
+    const el=document.getElementById('qmText');
+    if(el) el.focus();
+  }, 100);
+}
+
+function renderQuickMemos(week){
+  const d=sessionData[`week_${week}`];
+  const memos=d?(d.memos||[]):[];
+  const el=document.getElementById('qmMemosList');
+  if(!memos.length){ el.innerHTML='<div style="font-size:12px;color:#94a3b8;text-align:center;padding:8px 0">まだメモがありません</div>'; return; }
+  el.innerHTML=memos.map(m=>`<div class="memo-card"><div class="memo-meta">✏️ ${esc(m.author)}&ensp;<span style="font-weight:400;color:#94a3b8">${esc(m.time)}</span></div><div class="memo-text">${esc(m.text)}</div></div>`).join('');
+  // 最新メモを下にスクロール
+  el.scrollTop = el.scrollHeight;
+}
+
+async function submitQuickMemo(){
+  const author=document.getElementById('qmAuthor').value.trim();
+  const text  =document.getElementById('qmText').value.trim();
+  if(!author){ toast('お名前を入力してください','err'); document.getElementById('qmAuthor').focus(); return; }
+  if(!text)  { toast('メモを入力してください','err'); document.getElementById('qmText').focus(); return; }
+  localStorage.setItem('mzjuku_name',author);
+  const btn=document.getElementById('qmPostBtn');
+  btn.disabled=true; btn.textContent='投稿中...';
+  const key=`week_${currentWeek}`;
+  if(!sessionData[key]) sessionData[key]={memos:[],attachments:[]};
+  const now=new Date();
+  const ts=`${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  sessionData[key].memos.push({author,text,time:ts});
+  try {
+    await saveSessionData();
+    document.getElementById('qmText').value='';
+    renderQuickMemos(currentWeek);
+    render();
+    toast('✅ メモを投稿しました','ok');
+  } catch(e){
+    sessionData[key].memos.pop();
+    toast(`❌ ${e.message}`,'err');
+  } finally {
+    btn.disabled=false; btn.textContent='💬 投稿する';
+  }
+}
+
+function openDetailFromQM(){
+  closeModal('quickMemoModal');
+  openDetail(currentWeek);
+}
+
+/* ====== 詳細モーダル（管理者・添付ファイル用） ====== */
+function openDetail(week){
+  currentWeek=week;
+  const s=ALL.find(x=>x.week===week); if(!s) return;
+  const st=CAT[s.cat]||{bg:'#f1f5f9',color:'#475569',border:'#94a3b8'};
+  document.getElementById('dWeek').textContent=`第 ${s.week} 回　${s.date}`;
+  document.getElementById('dTheme').textContent=s.theme;
+  const tag=document.getElementById('dCatTag');
+  tag.textContent=s.cat; tag.style.background=st.bg; tag.style.color=st.color;
+  const pts=document.getElementById('dPoints');
+  if(s.points){ pts.innerHTML=`<strong>話し合うポイント</strong>${esc(s.points)}`; pts.style.display='block'; }
+  else { pts.style.display='none'; }
+  document.getElementById('uploadProg').style.display='none';
+  document.getElementById('editForm').style.display='none';
+  document.getElementById('editToggleBtn').textContent='✏ 編集';
+  document.getElementById('editToggleBtn').style.display=isAdmin()?'inline-flex':'none';
+  renderMemos(week); renderAttachments(week);
+  openModal('detailModal');
+}
+
+function renderMemos(week){
+  const d=sessionData[`week_${week}`];
+  const memos=d?(d.memos||[]):[];
+  const el=document.getElementById('memosList');
+  if(!memos.length){ el.innerHTML='<div class="no-memos">まだメモがありません</div>'; return; }
+  el.innerHTML=memos.map(m=>`<div class="memo-card"><div class="memo-meta">✏️ ${esc(m.author)}&ensp;<span style="font-weight:400;color:#94a3b8">${esc(m.time)}</span></div><div class="memo-text">${esc(m.text)}</div></div>`).join('');
+}
+function renderAttachments(week){
+  const d=sessionData[`week_${week}`];
+  const atts=d?(d.attachments||[]):[];
+  const el=document.getElementById('attachList');
+  if(!atts.length){ el.innerHTML='<div class="no-attach">添付ファイルはありません</div>'; return; }
+  const icon=n=>{ const e=n.split('.').pop().toLowerCase(); return {pdf:'📄',png:'🖼',jpg:'🖼',jpeg:'🖼',gif:'🖼',xlsx:'📊',xls:'📊',pptx:'📊',doc:'📝',docx:'📝'}[e]||'📎'; };
+  el.innerHTML=atts.map(a=>`<div class="attach-item"><span class="attach-icon">${icon(a.name)}</span><span class="attach-name">${esc(a.name)}</span><a class="attach-dl" href="${esc(a.url)}" target="_blank">ダウンロード</a></div>`).join('');
+}
+
+async function handleUpload(event){
+  const file=event.target.files[0]; if(!file) return;
+  if(file.size>24*1024*1024){ toast('❌ 24MB以内のファイルにしてください','err'); return; }
+  const cfg=getCfg();
+  if(!cfg.owner||!cfg.repo||!cfg.token){ toast('❌ GitHubが未設定です','err'); return; }
+  const prog=document.getElementById('uploadProg');
+  prog.style.display='block'; prog.textContent=`「${file.name}」をアップロード中...`;
+  try {
+    const b64=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res(e.target.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(file); });
+    const path=`attachments/week_${currentWeek}/${file.name}`;
+    const ex=await ghGet(cfg.owner,cfg.repo,path,cfg.token);
+    await ghPut(cfg.owner,cfg.repo,path,b64,ex?ex.sha:null,`添付: ${file.name}`,cfg.token,true);
+    const rawUrl=`https://raw.githubusercontent.com/${cfg.owner}/${cfg.repo}/main/${path}`;
+    const key=`week_${currentWeek}`;
+    if(!sessionData[key]) sessionData[key]={memos:[],attachments:[]};
+    sessionData[key].attachments=(sessionData[key].attachments||[]).filter(a=>a.name!==file.name);
+    sessionData[key].attachments.push({name:file.name,url:rawUrl});
+    await saveSessionData(); renderAttachments(currentWeek); toast(`✅「${file.name}」を添付しました`,'ok');
+  } catch(e){ toast(`❌ アップロード失敗: ${e.message}`,'err'); }
+  finally { prog.style.display='none'; event.target.value=''; }
+}
+
+/* 管理者・編集 */
+function setAdminPwd(){
+  const pwd=document.getElementById('adminPwdInput').value.trim();
+  if(pwd.length<4){ toast('4文字以上のパスワードを入力してください','err'); return; }
+  localStorage.setItem('mzjuku_admin',pwd);
+  document.getElementById('adminPwdStatus').textContent='✅ 管理者パスワードが設定されました';
+  document.getElementById('adminPwdStatus').style.color='#065f46';
+  document.getElementById('adminPwdInput').value='';
+  toast('✅ 管理者パスワードを設定しました','ok');
+}
+
+function toggleEdit(){
+  const form=document.getElementById('editForm');
+  if(form.style.display==='none'||!form.style.display){
+    const s=ALL.find(x=>x.week===currentWeek); if(!s) return;
+    const parts=s.date.split('/');
+    if(parts.length===3) document.getElementById('editDate').value=`${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
+    document.getElementById('editTheme').value=s.theme;
+    document.getElementById('editPoints').value=s.points;
+    document.getElementById('editNote').value=s.note||'';
+    document.getElementById('editCat').value=s.cat;
+    form.style.display='block';
+    document.getElementById('editToggleBtn').textContent='✕ 編集を閉じる';
+  } else { cancelEdit(); }
+}
+function cancelEdit(){
+  document.getElementById('editForm').style.display='none';
+  document.getElementById('editToggleBtn').textContent='✏ 編集';
+}
+
+async function saveEdit(){
+  const rawDate =document.getElementById('editDate').value;
+  const theme   =document.getElementById('editTheme').value.trim();
+  const points  =document.getElementById('editPoints').value.trim();
+  const cat     =document.getElementById('editCat').value;
+  const note    =document.getElementById('editNote').value.trim();
+  if(!theme){ toast('テーマを入力してください','err'); return; }
+  const d=new Date(rawDate);
+  const date=rawDate?`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`:ALL.find(x=>x.week===currentWeek).date;
+  const sp=note.includes('次世代');
+  const btn=document.getElementById('editSaveBtn');
+  btn.disabled=true; btn.textContent='保存中...';
+  try {
+    const isBase=BASE.some(b=>b.week===currentWeek);
+    if(isBase){
+      if(!sessionData.overrides) sessionData.overrides={};
+      sessionData.overrides[`week_${currentWeek}`]={date,theme,points,cat,note,sp};
+      await saveSessionData();
+    } else {
+      const idx=extra.findIndex(e=>e.week===currentWeek);
+      if(idx>=0) extra[idx]={...extra[idx],date,theme,points,cat,note,sp};
+      await saveSessions();
+    }
+    const ai=ALL.findIndex(x=>x.week===currentWeek);
+    if(ai>=0) ALL[ai]={...ALL[ai],date,theme,points,cat,note,sp};
+    cancelEdit();
+    const st=CAT[cat]||{bg:'#f1f5f9',color:'#475569',border:'#94a3b8'};
+    document.getElementById('dTheme').textContent=theme;
+    document.getElementById('dWeek').textContent=`第 ${currentWeek} 回　${date}`;
+    document.getElementById('dCatTag').textContent=cat;
+    document.getElementById('dCatTag').style.background=st.bg;
+    document.getElementById('dCatTag').style.color=st.color;
+    if(points){ document.getElementById('dPoints').innerHTML=`<strong>話し合うポイント</strong>${esc(points)}`; document.getElementById('dPoints').style.display='block'; }
+    else { document.getElementById('dPoints').style.display='none'; }
+    renderStats(); render(); toast('✅ 保存しました','ok');
+  } catch(e){ toast(`❌ ${e.message}`,'err'); }
+  finally { btn.disabled=false; btn.textContent='保存する'; }
+}
+
+/* 設定 */
+function openSetup(){
+  const cfg=getCfg();
+  document.getElementById('cfgOwner').value=cfg.owner||'';
+  document.getElementById('cfgRepo').value =cfg.repo||'';
+  document.getElementById('cfgToken').value=cfg.token||'';
+  document.getElementById('adminPwdInput').value='';
+  const has=!!localStorage.getItem('mzjuku_admin');
+  document.getElementById('adminPwdStatus').textContent=has?'✅ 管理者パスワード設定済み。編集機能が有効です。':'未設定（設定すると萬財塾のみ編集ボタンが使えます）';
+  document.getElementById('adminPwdStatus').style.color=has?'#065f46':'';
+  openModal('setupModal');
+}
+async function saveSetup(){
+  const owner=document.getElementById('cfgOwner').value.trim();
+  const repo =document.getElementById('cfgRepo').value.trim();
+  const token=document.getElementById('cfgToken').value.trim();
+  if(!owner||!repo||!token){ toast('すべての項目を入力してください','err'); return; }
+  const btn=document.getElementById('setupSaveBtn');
+  btn.disabled=true; btn.textContent='確認中...';
+  try {
+    const r=await fetch(`${GH}/repos/${owner}/${repo}`,{headers:ghH(token)});
+    if(r.status===404) throw new Error('リポジトリが見つかりません');
+    if(r.status===401) throw new Error('トークンが無効です');
+    if(!r.ok) throw new Error(`エラー: ${r.status}`);
+    setCfg({owner,repo,token});
+    closeModal('setupModal');
+    document.getElementById('connectedBadge').style.display='inline-flex';
+    toast('✅ GitHubに接続しました','ok');
+    await reload();
+  } catch(e){ toast(`❌ ${e.message}`,'err'); }
+  finally { btn.disabled=false; btn.textContent='接続して保存'; }
+}
+function clearConfig(){
+  if(!confirm('GitHub接続設定を削除しますか？')) return;
+  localStorage.removeItem(CFG_KEY);
+  extra=[]; sessionData={}; ALL=[...BASE];
+  document.getElementById('connectedBadge').style.display='none';
+  renderStats(); render(); closeModal('setupModal'); toast('設定を削除しました');
+}
+
+/* 追加 */
+function openAdd(){
+  const nw=Math.max(...ALL.map(s=>s.week))+1;
+  document.getElementById('newWeek').value=nw;
+  document.getElementById('newDate').value=nextThursday();
+  ['newTheme','newPoints','newNote'].forEach(id=>document.getElementById(id).value='');
+  openModal('addModal');
+}
+function nextThursday(){ const d=new Date(); const diff=(4-d.getDay()+7)%7||14; d.setDate(d.getDate()+diff); return d.toISOString().split('T')[0]; }
+async function addSession(){
+  const week =parseInt(document.getElementById('newWeek').value);
+  const raw  =document.getElementById('newDate').value;
+  const theme=document.getElementById('newTheme').value.trim();
+  const pts  =document.getElementById('newPoints').value.trim();
+  const cat  =document.getElementById('newCat').value;
+  const note =document.getElementById('newNote').value.trim();
+  if(!week||!raw||!theme){ toast('回数・開催日・テーマは必須です','err'); return; }
+  const d=new Date(raw);
+  const date=`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+  const item={week,date,theme,points:pts,cat,note,sp:note.includes('次世代')};
+  const btn=document.getElementById('addBtn');
+  btn.disabled=true; btn.textContent='保存中...';
+  try { extra.push(item); await saveSessions(); ALL=[...BASE,...extra]; closeModal('addModal'); renderStats(); render(); toast(`✅ 第${week}回「${theme}」を追加しました`,'ok'); }
+  catch(e){ extra.pop(); toast(`❌ ${e.message}`,'err'); }
+  finally { btn.disabled=false; btn.textContent='追加する'; }
+}
+
+/* AI */
+function openAI(){ document.getElementById('aiPromptBox').textContent=buildPrompt(); openModal('aiModal'); }
+function buildPrompt(){
+  const s=[...ALL].sort((a,b)=>a.week-b.week);
+  const total=s.length,next=total+1;
+  const cc={}; s.forEach(x=>cc[x.cat]=(cc[x.cat]||0)+1);
+  const catS=Object.entries(cc).map(([k,v])=>`${k}：${v}回`).join('、');
+  const rec=s.slice(-6).map(x=>`第${x.week}回（${x.date}）「${x.theme}」【${x.cat}】`).join('\n');
+  const full=s.map(x=>`第${x.week}回 ${x.date} ／ 【${x.cat}】${x.theme}`).join('\n');
+  return `私は広島県内の印刷会社（従業員約170名）で、社内勉強会「萬財塾」を運営している取締役です。\n\n【萬財塾の概要】\n・隔週木曜日 10:00〜10:30（30分間）／4階食堂\n・参加メンバー：制作2部・営業 計7名（竹野・大野・北角・中田・永田・地畠・山村）\n・2024年5月スタート、現在第${total}回まで実施済み\n\n【目的】 ①社会知識を高める ②語彙力強化 ③次世代リーダー育成\n\n【テーマ一覧（全${total}回）】\n${full}\n\n【カテゴリ別回数】${catS}\n\n【直近6回】\n${rec}\n\n---\n第${next}回のテーマを3案提案してください。\n\n■ 案①\nテーマ名：\n素材提案（記事・書籍・動画など具体的に）：\n話し合うポイント（2〜3個）：\n選んだ理由（バランス・メンバーへの効果）：\n\n■ 案②（同上）　■ 案③（同上）\n\n※印刷会社のクリエイター・営業メンバーに最適で30分の議論向き。AIは継続しつつカテゴリバランスも配慮。`;
+}
+function copyPrompt(){
+  const text=document.getElementById('aiPromptBox').textContent;
+  navigator.clipboard.writeText(text).then(()=>{ closeModal('aiModal'); toast('✅ コピーしました！Claudeに貼り付けてください','ok'); }).catch(()=>{
+    const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    closeModal('aiModal'); toast('✅ コピーしました！Claudeに貼り付けてください','ok');
+  });
+}
+
+let _tt;
+function toast(msg,type=''){ const el=document.getElementById('toast'); el.textContent=msg; el.className=`toast ${type}`; clearTimeout(_tt); _tt=setTimeout(()=>el.classList.add('hidden'),3400); }
+
+async function reload(){
+  document.getElementById('sessionsGrid').innerHTML=`<div class="loading" style="grid-column:1/-1"><div class="spin"></div>GitHubから読み込み中...</div>`;
+  try{ await loadAll(); }catch(e){ toast(`読み込みエラー: ${e.message}`,'err'); }
+  renderStats(); render();
+}
+
+(async()=>{
+  const cfg=getCfg();
+  if(cfg.owner&&cfg.token){ document.getElementById('connectedBadge').style.display='inline-flex'; await reload(); }
+  else { ALL=[...BASE]; renderStats(); render(); }
+})();
+</script>
+</body>
+</html>
